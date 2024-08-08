@@ -29,6 +29,8 @@ public:
   scheduler* sched;
   local_actor* parent;
   int flags = 0;
+  int8_t core = -1; // Bound to no core
+  uint8_t prio = 32768; // Default priority
   detail::unique_function<behavior(local_actor*)> init_fun;
   detail::mailbox_factory* mbox_factory = nullptr;
 
@@ -37,6 +39,14 @@ public:
   actor_config& add_flag(int x) {
     flags |= x;
     return *this;
+  }
+
+  void setCore(int8_t _core) {
+    this->core = _core;
+  }
+
+  void setPrio(uint8_t _prio) {
+    this->prio = _prio;
   }
 };
 

@@ -337,6 +337,10 @@ protected:
   /// Points to the first attachable in the linked list of attachables (if any).
   attachable_ptr attachables_head_;
 
+  /// Bounding core num and prio
+  int8_t core_;
+  uint8_t prio_;
+
 private:
   /// Forces the actor to close its mailbox and drop all messages. The only
   /// place calling this member function is

@@ -16,4 +16,12 @@ resumable::subtype_t resumable::subtype() const noexcept {
   return unspecified;
 }
 
+int8_t resumable::getCore() {
+  return -1;
+}
+
+uint8_t resumable::getPrio() {
+  return 32768;
+}
+
 } // namespace caf

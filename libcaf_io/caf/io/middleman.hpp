@@ -158,13 +158,21 @@ public:
   template <class Handle>
   expected<Handle>
   remote_spawn(const node_id& nid, std::string name, message args,
-               timespan timeout = timespan{std::chrono::minutes{1}}) {
+               timespan timeout = timespan{std::chrono::minutes{1}},
+               int8_t core = -1, uint8_t prio = 32768) {
     if (!nid || name.empty())
       return sec::invalid_argument;
-    if (nid == system().node())
-      return system().spawn<Handle>(std::move(name), std::move(args));
+    if (nid == system().node()) {
+      /*
+      spawn(const std::string& name, message args, caf::scheduler* ctx = nullptr,
+        bool check_interface = true, const mpi* expected_ifs = nullptr, 
+        int8_t core = -1, uint8_t prio = 32768)
+      */
+      return system().spawn<Handle>(std::move(name), std::move(args), nullptr, true, nullptr,
+                                    core, prio);
+    }
     auto res = remote_spawn_impl(nid, name, args,
-                                 system().message_types<Handle>(), timeout);
+                                 system().message_types<Handle>(), timeout, core, prio);
     if (!res)
       return std::move(res.error());
     return actor_cast<Handle>(std::move(*res));
@@ -173,9 +181,11 @@ public:
   template <class Handle, class Rep, class Period>
   expected<Handle> remote_spawn(const node_id& nid, std::string name,
                                 message args,
-                                std::chrono::duration<Rep, Period> timeout) {
+                                std::chrono::duration<Rep, Period> timeout,
+                                int8_t core = -1,
+                                uint8_t prio = 32768) {
     return remote_spawn<Handle>(nid, std::move(name), std::move(args),
-                                timespan{timeout});
+                                timespan{timeout}, core, prio);
   }
 
   /// Smart pointer for `network::multiplexer`.
@@ -313,7 +323,7 @@ private:
 
   expected<strong_actor_ptr>
   remote_spawn_impl(const node_id& nid, std::string& name, message& args,
-                    std::set<std::string> s, timespan timeout);
+                    std::set<std::string> s, timespan timeout, int8_t core, uint8_t prio);
 
   expected<uint16_t> publish(const strong_actor_ptr& whom,
                              std::set<std::string> sigs, uint16_t port,

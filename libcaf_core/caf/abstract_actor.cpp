@@ -24,7 +24,7 @@ namespace caf {
 
 // -- constructors, destructors, and assignment operators ----------------------
 
-abstract_actor::abstract_actor(actor_config& cfg) : flags_(cfg.flags) {
+abstract_actor::abstract_actor(actor_config& cfg) : flags_(cfg.flags), core_(cfg.core), prio_(cfg.prio) {
   // nop
 }
 

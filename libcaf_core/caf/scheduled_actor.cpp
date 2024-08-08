@@ -149,6 +149,14 @@ scheduled_actor::~scheduled_actor() {
     mailbox_->deref_mailbox();
 }
 
+int8_t scheduled_actor::getCore() {
+  return this->core_;
+}
+
+uint8_t scheduled_actor::getPrio() {
+  return this->prio_;
+}
+
 // -- overridden functions of abstract_actor -----------------------------------
 
 bool scheduled_actor::enqueue(mailbox_element_ptr ptr, scheduler* sched) {

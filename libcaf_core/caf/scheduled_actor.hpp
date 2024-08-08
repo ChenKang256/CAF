@@ -218,6 +218,10 @@ public:
 
   resume_result resume(scheduler*, size_t) override;
 
+  int8_t getCore() override;
+
+  uint8_t getPrio() override;
+
   // -- scheduler callbacks ----------------------------------------------------
 
   /// Returns a factory for proxies created

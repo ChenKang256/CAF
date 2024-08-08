@@ -85,7 +85,7 @@ using middleman_actor = typed_actor< //
   result<void>(close_atom, uint16_t),
 
   result<strong_actor_ptr>(spawn_atom, node_id, std::string, message,
-                           std::set<std::string>),
+                           std::set<std::string>, int8_t, uint8_t),
 
   result<node_id, std::string, uint16_t>(get_atom, node_id)>;
 

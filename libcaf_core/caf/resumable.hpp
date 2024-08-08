@@ -53,6 +53,10 @@ public:
 
   /// Remove a strong reference count from this object.
   virtual void deref_resumable() const noexcept = 0;
+
+  virtual int8_t getCore();
+
+  virtual uint8_t getPrio();
 };
 
 // enables intrusive_ptr<resumable> without introducing ambiguity

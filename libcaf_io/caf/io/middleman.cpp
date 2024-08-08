@@ -228,10 +228,10 @@ middleman::middleman(actor_system& sys) : system_(sys) {
 expected<strong_actor_ptr>
 middleman::remote_spawn_impl(const node_id& nid, std::string& name,
                              message& args, std::set<std::string> s,
-                             timespan timeout) {
+                             timespan timeout, int8_t core, uint8_t prio) {
   auto self = scoped_actor{system()};
   return self
-    ->mail(spawn_atom_v, nid, std::move(name), std::move(args), std::move(s))
+    ->mail(spawn_atom_v, nid, std::move(name), std::move(args), std::move(s), core, prio)
     .request(actor_handle(), timeout)
     .receive();
 }

@@ -139,7 +139,7 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
       return {};
     },
     [this](spawn_atom, node_id& nid, std::string& name, message& args,
-           std::set<std::string>& ifs) -> result<strong_actor_ptr> {
+           std::set<std::string>& ifs, int8_t core, uint8_t prio) -> result<strong_actor_ptr> {
       auto lg = log::io::trace("");
       if (!nid)
         return make_error(sec::invalid_argument,
@@ -149,7 +149,7 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
                           "cannot spawn actors without a type name");
       if (nid == system().node()) {
         if (auto res = system().spawn<actor>(name, std::move(args), nullptr,
-                                             true, &ifs))
+                                             true, &ifs, core, prio))
           return actor_cast<strong_actor_ptr>(std::move(*res));
         else
           return std::move(res.error());
@@ -159,7 +159,7 @@ auto middleman_actor_impl::make_behavior() -> behavior_type {
       auto id = basp::header::spawn_server_id;
       std::ignore = mail(forward_atom_v, nid, id,
                          make_message(spawn_atom_v, std::move(name),
-                                      std::move(args), std::move(ifs)))
+                                      std::move(args), std::move(ifs), core, prio))
                       .delegate(broker_);
       return delegated<strong_actor_ptr>{};
     },

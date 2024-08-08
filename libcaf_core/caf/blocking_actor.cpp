@@ -105,9 +105,18 @@ namespace {
 class blocking_actor_runner : public resumable {
 public:
   explicit blocking_actor_runner(blocking_actor* self,
-                                 detail::private_thread* thread, bool hidden)
-    : self_(self), thread_(thread), hidden_(hidden) {
+                                 detail::private_thread* thread, bool hidden,
+                                 int8_t core, uint8_t prio)
+    : self_(self), thread_(thread), hidden_(hidden), core_(core), prio_(prio) {
     intrusive_ptr_add_ref(self->ctrl());
+  }
+
+  int8_t getCore() override {
+    return this->core_;
+  }
+
+  uint8_t getPrio() override {
+    return this->prio_;
   }
 
   resumable::subtype_t subtype() const noexcept final {
@@ -155,6 +164,8 @@ private:
   blocking_actor* self_;
   detail::private_thread* thread_;
   bool hidden_;
+  int8_t core_;
+  uint8_t prio_;
 };
 
 } // namespace
@@ -173,7 +184,7 @@ void blocking_actor::launch(scheduler*, bool, bool hide) {
     [[maybe_unused]] auto count = sys.registry().inc_running();
     log::system::debug("actor {} increased running count to {}", id(), count);
   }
-  thread->resume(new blocking_actor_runner(this, thread, hide));
+  thread->resume(new blocking_actor_runner(this, thread, hide, this->core_, this->prio_));
 }
 
 blocking_actor::receive_while_helper

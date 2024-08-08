@@ -225,10 +225,10 @@ behavior spawn_serv_impl(stateful_actor<spawn_serv_state>* self) {
   auto lg = log::core::trace("");
   return {
     [=](spawn_atom, const std::string& name, message& args,
-        actor_system::mpi& xs) -> result<strong_actor_ptr> {
+        actor_system::mpi& xs, int8_t core, uint8_t prio) -> result<strong_actor_ptr> {
       auto lg = log::core::trace("name = {}, args = {}", name, args);
       return self->system().spawn<strong_actor_ptr>(name, std::move(args),
-                                                    self->context(), true, &xs);
+                                                    self->context(), true, &xs, core, prio);
     },
   };
 }
@@ -784,7 +784,7 @@ void actor_system::thread_terminates() {
 expected<strong_actor_ptr>
 actor_system::dyn_spawn_impl(const std::string& name, message& args,
                              caf::scheduler* sched, bool check_interface,
-                             const mpi* expected_ifs) {
+                             const mpi* expected_ifs, int8_t core, uint8_t prio) {
   auto lg = log::core::trace(
     "name = {}, args = {}, check_interface = {}, expected_ifs = {}", name, args,
     check_interface, expected_ifs);
@@ -794,6 +794,8 @@ actor_system::dyn_spawn_impl(const std::string& name, message& args,
   if (fs == nullptr)
     return sec::unknown_type;
   actor_config cfg{sched != nullptr ? sched : &scheduler()};
+  cfg.setCore(core);
+  cfg.setPrio(prio);
   auto res = (*fs)(*this, cfg, args);
   if (!res.first)
     return sec::cannot_spawn_actor_from_arguments;

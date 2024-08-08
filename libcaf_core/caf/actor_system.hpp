@@ -387,6 +387,19 @@ public:
     return spawn_impl<C, Os>(cfg, detail::spawn_fwd<Ts>(xs)...);
   }
 
+  template <class C, spawn_options Os = no_spawn_options, class... Ts>
+  infer_handle_from_class_t<C> spawn(int8_t core, uint8_t prio, Ts&&... xs) {
+    check_invariants<C>();
+    actor_config cfg;
+    cfg.mbox_factory = mailbox_factory();
+
+    // Set bounding core and priority
+    cfg.setCore(core);
+    cfg.setPrio(prio);
+
+    return spawn_impl<C, Os>(cfg, detail::spawn_fwd<Ts>(xs)...);
+  }
+
   /// Called by `spawn` when used to create a functor-based actor to select a
   /// proper implementation and then delegates to `spawn_impl`.
   /// @param cfg To-be-filled config for the actor.
@@ -443,13 +456,14 @@ public:
   template <class Handle, class E = std::enable_if_t<is_handle_v<Handle>>>
   expected<Handle>
   spawn(const std::string& name, message args, caf::scheduler* ctx = nullptr,
-        bool check_interface = true, const mpi* expected_ifs = nullptr) {
+        bool check_interface = true, const mpi* expected_ifs = nullptr, 
+        int8_t core = -1, uint8_t prio = 32768) {
     mpi tmp;
     if (check_interface && !expected_ifs) {
       tmp = message_types<Handle>();
       expected_ifs = &tmp;
     }
-    auto res = dyn_spawn_impl(name, args, ctx, check_interface, expected_ifs);
+    auto res = dyn_spawn_impl(name, args, ctx, check_interface, expected_ifs, core, prio);
     if (!res)
       return std::move(res.error());
     return actor_cast<Handle>(std::move(*res));
@@ -653,7 +667,8 @@ private:
 
   expected<strong_actor_ptr>
   dyn_spawn_impl(const std::string& name, message& args, caf::scheduler* ctx,
-                 bool check_interface, const mpi* expected_ifs);
+                 bool check_interface, const mpi* expected_ifs,
+                 int8_t core, uint8_t prio);
 
   detail::mailbox_factory* mailbox_factory();
 
