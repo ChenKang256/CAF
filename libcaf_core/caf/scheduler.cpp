@@ -27,6 +27,8 @@
 #include <memory>
 #include <random>
 #include <thread>
+#include <unistd.h>
+#include <sched.h>
 
 namespace caf {
 
@@ -100,8 +102,8 @@ public:
 
   template <class SchedulerImpl>
   worker(size_t worker_id, SchedulerImpl*, const worker_data& init,
-         size_t throughput)
-    : max_throughput_(throughput), id_(worker_id), data_(init) {
+         size_t throughput, int cpu_id = -1)
+    : max_throughput_(throughput), id_(worker_id), data_(init), cpu_id_(cpu_id) {
     // nop
   }
 
@@ -201,6 +203,18 @@ private:
   template <typename Parent>
   void run(Parent* parent) {
     CAF_SET_LOGGER_SYS(&parent->system());
+
+    // Set affinity
+    int cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
+    if (0 <= cpu_id_ && cpu_id_ < cpu_num) {
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      CPU_SET(cpu_id_, &cpuset);
+
+      pthread_t thread = pthread_self();
+      pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    }
+
     // scheduling loop
     for (;;) {
       auto job = policy_dequeue(parent);
@@ -241,6 +255,9 @@ private:
 
   // Policy-specific data.
   worker_data data_;
+
+  // CPU id
+  int cpu_id_;
 };
 
 /// Policy-based implementation of the scheduler base class.
@@ -252,6 +269,7 @@ public:
                              defaults::scheduler::max_throughput);
     num_workers_ = get_or(cfg, "caf.scheduler.max-threads",
                           detail::default_thread_count());
+    cpu_num_ = sysconf(_SC_NPROCESSORS_ONLN);
   }
 
   using worker_type = worker;
@@ -289,11 +307,15 @@ public:
     // Create initial state for all workers.
     worker_data init{this};
     // Prepare workers vector.
-    workers_.reserve(num_workers_);
+    workers_.reserve(num_workers_ + cpu_num_);
     // Create worker instances.
     for (size_t i = 0; i < num_workers_; ++i)
       workers_.emplace_back(
         std::make_unique<worker_type>(i, this, init, max_throughput_));
+    for (size_t i = num_workers_; i < num_workers_ + cpu_num_; ++i)
+      // i is id, i-num_workers_ is cpu id
+      workers_.emplace_back(
+        std::make_unique<worker_type>(i, this, init, max_throughput_, i-num_workers_));
     // Start all workers.
     for (auto& w : workers_)
       w->start(this);
@@ -328,7 +350,7 @@ public:
     // Use a set to keep track of remaining workers.
     shutdown_helper sh;
     std::set<worker_type*> alive_workers;
-    for (size_t i = 0; i < num_workers_; ++i) {
+    for (size_t i = 0; i < num_workers_ + cpu_num_; ++i) {
       alive_workers.insert(worker_by_id(i));
       sh.ref(); // Make sure reference count is high enough.
     }
@@ -371,6 +393,9 @@ private:
   /// Configured number of workers.
   size_t num_workers_ = 0;
 
+  /// CPU number
+  size_t cpu_num_ = 0;
+
   /// Reference to the host system.
   actor_system* sys_ = nullptr;
 };
@@ -387,8 +412,8 @@ class worker : public scheduler {
 public:
   using job_ptr = resumable*;
 
-  worker(size_t worker_id, Parent* parent, size_t throughput)
-    : max_throughput_(throughput), parent_{parent}, id_(worker_id) {
+  worker(size_t worker_id, Parent* parent, size_t throughput, int cpu_id = -1)
+    : max_throughput_(throughput), parent_{parent}, id_(worker_id), cpu_id_(cpu_id) {
     // nop
   }
 
@@ -432,6 +457,18 @@ public:
 private:
   void run() {
     CAF_SET_LOGGER_SYS(&parent_->system());
+
+    // Set affinity
+    int cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
+    if (0 <= cpu_id_ && cpu_id_ < cpu_num) {
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      CPU_SET(cpu_id_, &cpuset);
+
+      pthread_t thread = pthread_self();
+      pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    }
+
     // scheduling loop
     for (;;) {
       auto job = parent_->dequeue();
@@ -466,6 +503,9 @@ private:
 
   // The worker's ID received from scheduler.
   size_t id_;
+
+  // CPU id
+  int cpu_id_;
 };
 
 class scheduler_impl : public scheduler {
@@ -482,6 +522,7 @@ public:
                              defaults::scheduler::max_throughput);
     num_workers_ = get_or(cfg, "caf.scheduler.max-threads",
                           detail::default_thread_count());
+    cpu_num_ = sysconf(_SC_NPROCESSORS_ONLN);
   }
 
   // -- properties -------------------------------------------------------------
@@ -514,12 +555,15 @@ public:
 
   void start() override {
     // Prepare workers vector.
-    auto num = num_workers_;
-    workers_.reserve(num);
+    workers_.reserve(num_workers_ + cpu_num_);
     // Create worker instances.
-    for (size_t i = 0; i < num; ++i)
+    for (size_t i = 0; i < num_workers_; ++i)
       workers_.emplace_back(
         std::make_unique<worker_type>(i, this, max_throughput_));
+    for (size_t i = num_workers_; i < num_workers_ + cpu_num_; ++i)
+      // i is id, i-num_workers_ is cpu id
+      workers_.emplace_back(
+        std::make_unique<worker_type>(i, this, max_throughput_, i-num_workers_));
     // Start all workers.
     for (auto& w : workers_)
       w->start();
@@ -552,7 +596,7 @@ public:
     // Use a set to keep track of remaining workers.
     shutdown_helper sh;
     std::set<worker_type*> alive_workers;
-    for (size_t i = 0; i < num_workers_; ++i) {
+    for (size_t i = 0; i < num_workers_ + cpu_num_; ++i) {
       alive_workers.insert(worker_by_id(i));
       sh.ref(); // Make sure reference count is high enough.
     }
@@ -621,6 +665,9 @@ private:
 
   /// Configured number of workers.
   size_t num_workers_ = 0;
+
+  /// CPU number
+  size_t cpu_num_ = 0;
 
   /// Reference to the host system.
   actor_system* sys_ = nullptr;
