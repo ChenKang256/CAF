@@ -21,7 +21,7 @@ int8_t resumable::getCore() {
 }
 
 uint8_t resumable::getPrio() {
-  return 32768;
+  return 127;
 }
 
 } // namespace caf

@@ -440,12 +440,44 @@ public:
                              std::forward<Ts>(xs)...);
   }
 
+    template <spawn_options Os = no_spawn_options, class F, class... Ts>
+  infer_handle_from_fun_t<F> spawn(int8_t core, uint8_t prio, F fun, Ts&&... xs) {
+    using impl = infer_impl_from_fun_t<F>;
+    check_invariants<impl>();
+    static constexpr bool spawnable = detail::spawnable<F, impl, Ts...>();
+    static_assert(spawnable,
+                  "cannot spawn function-based actor with given arguments");
+    actor_config cfg;
+    cfg.mbox_factory = mailbox_factory();
+
+    // Set bounding core and priority
+    cfg.setCore(core);
+    cfg.setPrio(prio);
+
+    return spawn_functor<Os>(std::bool_constant<spawnable>{}, cfg, fun,
+                             std::forward<Ts>(xs)...);
+  }
+
   /// Returns a new stateful actor.
   template <spawn_options Options = no_spawn_options, class CustomSpawn,
             class... Args>
   typename CustomSpawn::handle_type spawn(CustomSpawn, Args&&... args) {
     actor_config cfg{&scheduler(), nullptr};
     cfg.mbox_factory = mailbox_factory();
+    return CustomSpawn::template do_spawn<Options>(*this, cfg,
+                                                   std::forward<Args>(args)...);
+  }
+
+  template <spawn_options Options = no_spawn_options, class CustomSpawn,
+            class... Args>
+  typename CustomSpawn::handle_type spawn(int8_t core, uint8_t prio, CustomSpawn, Args&&... args) {
+    actor_config cfg{&scheduler(), nullptr};
+    cfg.mbox_factory = mailbox_factory();
+
+    // Set bounding core and priority
+    cfg.setCore(core);
+    cfg.setPrio(prio);
+
     return CustomSpawn::template do_spawn<Options>(*this, cfg,
                                                    std::forward<Args>(args)...);
   }
@@ -457,7 +489,7 @@ public:
   expected<Handle>
   spawn(const std::string& name, message args, caf::scheduler* ctx = nullptr,
         bool check_interface = true, const mpi* expected_ifs = nullptr, 
-        int8_t core = -1, uint8_t prio = 32768) {
+        int8_t core = -1, uint8_t prio = 127) {
     mpi tmp;
     if (check_interface && !expected_ifs) {
       tmp = message_types<Handle>();

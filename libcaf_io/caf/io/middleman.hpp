@@ -159,14 +159,14 @@ public:
   expected<Handle>
   remote_spawn(const node_id& nid, std::string name, message args,
                timespan timeout = timespan{std::chrono::minutes{1}},
-               int8_t core = -1, uint8_t prio = 32768) {
+               int8_t core = -1, uint8_t prio = 127) {
     if (!nid || name.empty())
       return sec::invalid_argument;
     if (nid == system().node()) {
       /*
       spawn(const std::string& name, message args, caf::scheduler* ctx = nullptr,
         bool check_interface = true, const mpi* expected_ifs = nullptr, 
-        int8_t core = -1, uint8_t prio = 32768)
+        int8_t core = -1, uint8_t prio = 127)
       */
       return system().spawn<Handle>(std::move(name), std::move(args), nullptr, true, nullptr,
                                     core, prio);
@@ -183,7 +183,7 @@ public:
                                 message args,
                                 std::chrono::duration<Rep, Period> timeout,
                                 int8_t core = -1,
-                                uint8_t prio = 32768) {
+                                uint8_t prio = 127) {
     return remote_spawn<Handle>(nid, std::move(name), std::move(args),
                                 timespan{timeout}, core, prio);
   }
