@@ -455,6 +455,10 @@ public:
         scheduler.reset(new detail::test_coordinator(*parent));
       } else if (config_policy == "sharing") {
         scheduler = scheduler::make_work_sharing(*parent);
+      } else if (config_policy == "stealing") {
+        scheduler = scheduler::make_work_stealing(*parent);
+      } else if (config_policy == "priority") {
+        scheduler = scheduler::make_work_priority(*parent);
       } else {
         // Any invalid configuration falls back to work stealing.
         if (config_policy != "stealing")

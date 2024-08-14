@@ -23,6 +23,8 @@ public:
 
   static std::unique_ptr<scheduler> make_work_sharing(actor_system& sys);
 
+  static std::unique_ptr<scheduler> make_work_priority(actor_system& sys);
+
   // -- constructors, destructors, and assignment operators --------------------
 
   virtual ~scheduler();

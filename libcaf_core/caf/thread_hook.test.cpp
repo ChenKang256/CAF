@@ -12,8 +12,6 @@
 #include "caf/scheduler.hpp"
 
 #include <atomic>
-#include <unistd.h>
-#include <sched.h>
 
 using namespace caf;
 
@@ -117,9 +115,7 @@ TEST("counting_system_without_actor") {
   {
     assumed_init_calls = 1;
     auto fallback = detail::default_thread_count();
-    int cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     assumed_thread_count = get_or(cfg, "caf.scheduler.max-threads", fallback)
-                           + cpu_num
                            + 3; // clock, private thread pool and printer
   }
 }
@@ -128,10 +124,8 @@ TEST("counting_system_with_actor") {
   {
     assumed_init_calls = 1;
     auto fallback = detail::default_thread_count();
-    int cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
     assumed_thread_count
       = get_or(cfg, "caf.scheduler.max-threads", fallback)
-        + cpu_num
         + 4; // clock, private thread pool, printer and  detached actor
     sys.spawn<detached>([] {});
     sys.spawn([] {});

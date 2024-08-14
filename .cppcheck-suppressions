@@ -32,6 +32,9 @@ operatorEqVarError:libcaf_core/src/ref_counted.cpp
 // cppcheck complains about not initializing the pad members
 uninitMemberVar:libcaf_core/caf/detail/double_ended_queue.hpp
 
+// cppcheck complains about not initializing the pad members
+uninitMemberVar:libcaf_core/caf/detail/priority_queue.hpp
+
 // making the policy functions static is technically possible,
 // but conceptionally questionable
 functionStatic:libcaf_core/caf/policy/work_stealing.hpp
