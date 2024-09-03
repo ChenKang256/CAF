@@ -30,6 +30,7 @@
 #include <thread>
 #include <unistd.h>
 #include <sched.h>
+#include <cstdio>
 
 namespace caf {
 
@@ -129,12 +130,14 @@ public:
 
   void schedule(job_ptr job) override {
     CAF_ASSERT(job != nullptr);
-    data_.queue.append(job);
+    printf("schedule prio %d to queue %d\n", job->getPrio(), id());
+    data_.queue.append(job, job->getPrio());
   }
 
   void delay(job_ptr job) override {
     CAF_ASSERT(job != nullptr);
-    data_.queue.prepend(job);
+    printf("schedule prio %d to queue %d\n", job->getPrio(), id());
+    data_.queue.prepend(job, job->getPrio());
   }
 
   size_t id() const {
@@ -208,6 +211,7 @@ private:
     // scheduling loop
     for (;;) {
       auto job = policy_dequeue(parent);
+      printf("queue %d resume job prio: %d\n", id_, job->getPrio());
       CAF_ASSERT(job != nullptr);
       CAF_ASSERT(job->subtype() != resumable::io_actor);
       auto res = job->resume(this, max_throughput_);
@@ -256,6 +260,7 @@ public:
                              defaults::scheduler::max_throughput);
     num_workers_ = get_or(cfg, "caf.scheduler.max-threads",
                           detail::default_thread_count());
+    printf("Default thread count: %d\n", detail::default_thread_count());
   }
 
   using worker_type = worker;
@@ -299,6 +304,7 @@ public:
       workers_.emplace_back(
         std::make_unique<worker_type>(i, this, init, max_throughput_));
     // Start all workers.
+    printf("work_stealing worker num: %d\n", workers_.size());
     for (auto& w : workers_)
       w->start(this);
   }
@@ -442,6 +448,7 @@ private:
       auto job = parent_->dequeue();
       CAF_ASSERT(job != nullptr);
       CAF_ASSERT(job->subtype() != resumable::io_actor);
+      printf("queue %d resume job prio: %d\n", id_, job->getPrio());
       auto res = job->resume(this, max_throughput_);
       switch (res) {
         case resumable::resume_later:
@@ -487,6 +494,7 @@ public:
                              defaults::scheduler::max_throughput);
     num_workers_ = get_or(cfg, "caf.scheduler.max-threads",
                           detail::default_thread_count());
+    printf("Default thread count: %d\n", detail::default_thread_count());
   }
 
   // -- properties -------------------------------------------------------------
@@ -506,6 +514,7 @@ public:
   // -- implementation of scheduler interface ----------------------------------
 
   void schedule(resumable* ptr) override {
+    printf("schedule prio %d\n", ptr->getPrio());
     queue_type l;
     l.push_back(ptr);
     std::unique_lock<std::mutex> guard(lock);
@@ -525,6 +534,7 @@ public:
       workers_.emplace_back(
         std::make_unique<worker_type>(i, this, max_throughput_));
     // Start all workers.
+    printf("work_sharing worker num: %d\n", workers_.size());
     for (auto& w : workers_)
       w->start();
   }
@@ -722,11 +732,13 @@ public:
 
   void schedule(job_ptr job) override {
     CAF_ASSERT(job != nullptr);
+    printf("schedule prio %d to queue %d\n", job->getPrio(), id());
     data_.queue.append(job, job->getPrio());
   }
 
   void delay(job_ptr job) override {
     CAF_ASSERT(job != nullptr);
+    printf("schedule prio %d to queue %d\n", job->getPrio(), id());
     data_.queue.prepend(job, job->getPrio());
   }
 
@@ -806,6 +818,7 @@ private:
       auto job = policy_dequeue(parent);
       CAF_ASSERT(job != nullptr);
       CAF_ASSERT(job->subtype() != resumable::io_actor);
+      printf("queue %d resume job prio: %d\n", id_, job->getPrio());
       auto res = job->resume(this, max_throughput_);
       switch (res) {
         case resumable::resume_later: {
@@ -887,6 +900,7 @@ public:
       w->schedule(ptr);
     } else {
       // 非法, 留在全局queue上
+      printf("schedule prio %d\n", ptr->getPrio());
       this->queue.append(ptr, ptr->getPrio());
     }
   }
@@ -906,6 +920,7 @@ public:
       workers_.emplace_back(
         std::make_unique<worker_type>(i, this, init, max_throughput_, i));
     // Start all workers.
+    printf("work_priority worker num: %d\n", workers_.size());
     for (auto& w : workers_)
       w->start(this);
   }
